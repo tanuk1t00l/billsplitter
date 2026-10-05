@@ -1,0 +1,388 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>더치페이 계산기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Roboto:wght@500;700&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow column — people strip, receipt-like set cards, then a settlement card that reads like a bill split */
+:root{
+  --bg:#EEF1F5; --surface:#FFFFFF; --ink:#1A2230; --muted:#667085; --line:#D5DBE4;
+  --accent:#3B7DD8; --accent-soft:#E3EEFB; --chip-bg:#CFE0F7; --chip-fg:#1F4F94; --chip-line:#A9C7EE; --on-accent:#FFFFFF; --warn:#B4531A; --field:#F5F7FA;
+  --f-display:"Black Han Sans","IBM Plex Sans KR",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --f-num:"Roboto","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11151B; --surface:#1A2029; --ink:#E4E9F0; --muted:#8C97A8; --line:#2C3542;
+  --accent:#7CB0F0; --accent-soft:#1D2D44; --chip-bg:#2A4466; --chip-fg:#DCE9FA; --chip-line:#3B5A82; --on-accent:#0B1A2E; --warn:#F0A066; --field:#141922; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11151B; --surface:#1A2029; --ink:#E4E9F0; --muted:#8C97A8; --line:#2C3542;
+  --accent:#7CB0F0; --accent-soft:#1D2D44; --chip-bg:#2A4466; --chip-fg:#DCE9FA; --chip-line:#3B5A82; --on-accent:#0B1A2E; --warn:#F0A066; --field:#141922; color-scheme:dark}
+
+html{font-size:80%}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:12px;line-height:1.5}
+.wrap{max-width:860px;margin:0 auto;padding:28px 16px 64px;display:flex;flex-direction:column;gap:20px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-weight:400;font-size:2rem;line-height:1.1;margin:0;letter-spacing:.01em}
+h1 span{color:var(--accent)}
+.sub{color:var(--muted);margin:4px 0 0;font-size:.9rem}
+h2{font-size:.78rem;font-weight:700;letter-spacing:.08em;color:var(--muted);margin:0}
+button,input,select{font:inherit;color:inherit}
+input,select{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input::placeholder{color:var(--muted);opacity:.75}
+button{cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);padding:8px 12px}
+button:disabled{opacity:.35;cursor:not-allowed}
+.ghost{background:transparent;color:var(--muted);font-size:.85rem}
+.ghost:hover:not(:disabled){color:var(--ink);border-color:var(--muted)}
+.add{border-style:dashed;color:var(--accent);background:transparent;font-weight:500}
+.add:hover{background:var(--accent-soft)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.people{display:flex;flex-direction:column;gap:10px}
+.people-list{display:flex;flex-wrap:wrap;gap:8px}
+.person{display:flex;align-items:center;gap:4px;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:2px 4px 2px 12px}
+.person input{border:0;background:transparent;padding:6px 0;width:9em}
+.person input:focus-visible{outline:none}
+.person:focus-within{border-color:var(--accent)}
+.x{border:0;background:transparent;color:var(--muted);width:28px;height:28px;padding:0;border-radius:999px;font-size:1rem;line-height:1}
+.x:hover:not(:disabled){background:var(--line);color:var(--ink)}
+
+.sets{display:flex;flex-direction:column;gap:16px}
+.set{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.set-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px dashed var(--line)}
+.num{font-family:var(--f-display);font-size:1.6rem;line-height:1;color:var(--accent);width:1.4em;text-align:center}
+.store{flex:1 1 12rem;font-weight:500}
+.payer{display:flex;align-items:center;gap:6px;flex:0 1 auto}
+.payer label{font-size:.85rem;color:var(--muted);white-space:nowrap}
+.payer select{width:auto;min-width:6.5em}
+.items{display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:minmax(7rem,1.1fr) 8.5rem minmax(0,1.4fr) auto;gap:8px;align-items:center;padding:8px 16px}
+.item + .item{border-top:1px solid var(--line)}
+.amt{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border-radius:5px;padding:4px 12px;font-size:.85rem;font-weight:500;background:var(--chip-bg);color:var(--chip-fg);border:1px solid var(--chip-line)}
+.chip.off{background:transparent;color:var(--muted);border:1px dashed var(--line);text-decoration:line-through}
+.minus{width:34px;height:34px;padding:0;font-size:1.1rem;line-height:1;color:var(--muted);background:transparent}
+.minus:hover:not(:disabled){color:var(--warn);border-color:var(--warn)}
+.set-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 16px;background:var(--field);border-top:1px dashed var(--line)}
+.total{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-weight:600}
+.total small{font-family:var(--f-body);font-weight:400;color:var(--muted);margin-right:6px}
+.warn{color:var(--warn);font-size:.82rem}
+.add-set{padding:14px;font-size:1rem}
+
+.result{display:flex;flex-direction:column;gap:16px}
+.result-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.result-head .tools{display:flex;gap:8px;align-items:center}
+.result-head select{width:auto}
+.transfers{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.tr{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;background:var(--accent-soft)}
+.tr .who{font-weight:500;min-width:0}
+.tr .nm{color:var(--accent);font-weight:700}
+.tr .money{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-weight:600;font-size:1.1rem;color:var(--accent)}
+.empty{color:var(--muted);padding:12px 0}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem;white-space:nowrap}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+thead th{color:var(--muted);font-weight:500;font-size:.8rem}
+td{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+td:first-child{font-family:var(--f-body);font-weight:500}
+.pos{color:var(--accent)} .neg{color:var(--warn)}
+tfoot td{font-weight:600;border-bottom:0}
+.note{color:var(--muted);font-size:.8rem;margin:0}
+.toast{font-size:.82rem;color:var(--accent)}
+
+@media (max-width:640px){
+  .item{grid-template-columns:minmax(0,1fr) 7.5rem auto;padding:10px 16px}
+  .chips{grid-column:1 / -1;grid-row:2}
+  h1{font-size:1.7rem}
+}
+@media (prefers-reduced-motion:no-preference){button,.chip{transition:background .15s,color .15s,border-color .15s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>더치페이 <span>계산기</span></h1>
+      <p class="sub">먹지 않은 항목은 이름을 눌러 빼면 정산에 반영됩니다.</p>
+    </div>
+    <button class="ghost" id="reset" type="button">모두 비우기</button>
+  </header>
+
+  <section class="panel people" aria-labelledby="ppl-h">
+    <h2 id="ppl-h">함께한 사람</h2>
+    <div class="people-list" id="people"></div>
+  </section>
+
+  <section class="sets" id="sets" aria-label="결제 내역"></section>
+  <button class="add add-set" id="addSet" type="button" aria-label="결제 세트 추가">+ 추가</button>
+
+  <section class="panel result" aria-labelledby="res-h">
+    <div class="result-head">
+      <h2 id="res-h">정산 결과</h2>
+      <div class="tools">
+        <select id="round" aria-label="반올림 단위">
+          <option value="1">1원 단위</option>
+          <option value="10">10원 단위</option>
+          <option value="100">100원 단위</option>
+        </select>
+        <button type="button" id="copy">결과 복사</button>
+      </div>
+    </div>
+    <span class="toast" id="toast" aria-live="polite"></span>
+    <ul class="transfers" id="transfers"></ul>
+    <div class="table-wrap"><table id="breakdown"></table></div>
+    <p class="note">차액 = 결제한 금액 − 실제 부담할 금액. 결제자가 여러 명이면 서로 주고받을 돈을 상계해 최소 송금만 표시합니다.</p>
+  </section>
+</div>
+
+<script>
+(() => {
+  const KEY = 'dutchpay-v2';
+  let uid = 1;
+  const nid = () => 'i' + (uid++) + Math.random().toString(36).slice(2, 6);
+  const newItem = (name = '', amount = 0) => ({ id: nid(), name, amount, off: [] });
+  const newSet = (payer) => ({ id: nid(), store: '', payer, items: [newItem(), newItem()] });
+
+  function blank() {
+    const people = [{ id: nid(), name: '' }, { id: nid(), name: '' }];
+    return { people, sets: [newSet(people[0].id), newSet(people[0].id)], round: 1 };
+  }
+
+  let S;
+  try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
+  if (!S || !Array.isArray(S.people) || !Array.isArray(S.sets)) S = blank();
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+
+  const $ = (id) => document.getElementById(id);
+  const won = (n) => Math.round(n).toLocaleString('ko-KR');
+  const circled = (i) => i < 20 ? String.fromCharCode(0x2460 + i) : '(' + (i + 1) + ')';
+  const pName = (p) => (p.name || '').trim() || (S.people.indexOf(p) + 1) + '번';
+  const byId = (id) => S.people.find(p => p.id === id);
+  const parseAmt = (v) => Number(String(v).replace(/[^\d]/g, '')) || 0;
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  // 받침 있으면 '이', 없으면 '가'
+  const iga = (s) => { const c = s.charCodeAt(s.length - 1) - 0xAC00; return (c >= 0 && c < 11172 && c % 28 === 0) ? '가' : '이'; };
+  const setLabel = (set, i) => circled(i) + (set.store.trim() ? ' ' + set.store.trim() : '');
+
+  /* ---------- people ---------- */
+  function renderPeople() {
+    const box = $('people');
+    box.innerHTML = S.people.map((p, i) => `
+      <div class="person">
+        <input id="pn-${p.id}" data-pid="${p.id}" value="${esc(p.name)}" placeholder="이름을 입력하세요" aria-label="${i + 1}번째 사람 이름" maxlength="12">
+        <button class="x" type="button" data-delp="${p.id}" aria-label="삭제" ${S.people.length <= 2 ? 'disabled' : ''}>×</button>
+      </div>`).join('') + `<button class="add" type="button" id="addP" aria-label="사람 추가">+ 추가</button>`;
+  }
+  $('people').addEventListener('input', (e) => {
+    const p = byId(e.target.dataset.pid); if (!p) return;
+    p.name = e.target.value;
+    document.querySelectorAll(`[data-pname="${p.id}"]`).forEach(el => el.textContent = pName(p));
+    calc(); save();
+  });
+  $('people').addEventListener('click', (e) => {
+    if (e.target.id === 'addP') {
+      S.people.push({ id: nid(), name: '' });
+      renderAll();
+      const ins = $('people').querySelectorAll('input'); ins[ins.length - 1].focus();
+    } else if (e.target.dataset.delp && S.people.length > 2) {
+      const id = e.target.dataset.delp;
+      S.people = S.people.filter(p => p.id !== id);
+      S.sets.forEach(s => {
+        if (s.payer === id) s.payer = S.people[0].id;
+        s.items.forEach(it => it.off = it.off.filter(x => x !== id));
+      });
+      renderAll();
+    }
+  });
+
+  /* ---------- sets ---------- */
+  function renderSets() {
+    $('sets').innerHTML = S.sets.map((s, si) => `
+      <article class="set" data-sid="${s.id}">
+        <div class="set-head">
+          <span class="num" aria-hidden="true">${circled(si)}</span>
+          <input class="store" id="st-${s.id}" data-f="store" value="${esc(s.store)}" placeholder="가게 이름" aria-label="${si + 1}번 세트 가게 이름">
+          <div class="payer">
+            <label for="py-${s.id}">결제</label>
+            <select id="py-${s.id}" data-f="payer">
+              ${S.people.map(p => `<option value="${p.id}" ${p.id === s.payer ? 'selected' : ''} data-pname="${p.id}">${esc(pName(p))}</option>`).join('')}
+            </select>
+          </div>
+          <button class="x" type="button" data-act="delset" aria-label="세트 삭제" title="세트 삭제" ${S.sets.length <= 1 ? 'disabled' : ''}>×</button>
+        </div>
+        <div class="items">
+          ${s.items.map(it => `
+            <div class="item" data-iid="${it.id}">
+              <input id="in-${it.id}" data-f="name" value="${esc(it.name)}" placeholder="항목 이름" aria-label="항목 이름">
+              <input id="ia-${it.id}" class="amt" data-f="amount" inputmode="numeric" value="${it.amount ? won(it.amount) : ''}" placeholder="0원" aria-label="금액">
+              <div class="chips">
+                ${S.people.map(p => {
+                  const off = it.off.includes(p.id);
+                  return `<button type="button" class="chip ${off ? 'off' : ''}" data-act="chip" data-p="${p.id}" aria-pressed="${!off}" data-pname="${p.id}">${esc(pName(p))}</button>`;
+                }).join('')}
+              </div>
+              <button class="minus" type="button" data-act="delitem" aria-label="항목 삭제" ${s.items.length <= 1 ? 'disabled' : ''}>−</button>
+            </div>`).join('')}
+        </div>
+        <div class="set-foot">
+          <button class="add" type="button" data-act="additem">+ 항목 추가</button>
+          <span class="warn" data-warn></span>
+          <span class="total"><small>합계</small><span data-total>0</span>원</span>
+        </div>
+      </article>`).join('');
+  }
+
+  const ctx = (el) => {
+    const setEl = el.closest('.set'); if (!setEl) return {};
+    const set = S.sets.find(s => s.id === setEl.dataset.sid);
+    const itEl = el.closest('.item');
+    const item = itEl && set.items.find(i => i.id === itEl.dataset.iid);
+    return { set, item };
+  };
+  $('sets').addEventListener('input', (e) => {
+    const { set, item } = ctx(e.target); const f = e.target.dataset.f;
+    if (!set || !f) return;
+    if (f === 'store') set.store = e.target.value;
+    else if (f === 'payer') set.payer = e.target.value;
+    else if (item && f === 'name') item.name = e.target.value;
+    else if (item && f === 'amount') item.amount = parseAmt(e.target.value);
+    calc(); save();
+  });
+  $('sets').addEventListener('change', (e) => {
+    if (e.target.dataset.f === 'payer') { ctx(e.target).set.payer = e.target.value; calc(); save(); }
+  });
+  $('sets').addEventListener('focusout', (e) => {
+    if (e.target.dataset.f === 'amount') {
+      const v = parseAmt(e.target.value); e.target.value = v ? won(v) : '';
+    }
+  });
+  $('sets').addEventListener('focusin', (e) => {
+    if (e.target.dataset.f === 'amount' && e.target.value) {
+      e.target.value = String(parseAmt(e.target.value));
+    }
+  });
+  $('sets').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.dataset.f === 'amount') {
+      const { set, item } = ctx(e.target);
+      const idx = set.items.indexOf(item);
+      if (idx === set.items.length - 1) { set.items.push(newItem()); renderAll(); }
+      const next = set.items[idx + 1]; if (next) $('in-' + next.id).focus();
+    }
+  });
+  $('sets').addEventListener('click', (e) => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    const { set, item } = ctx(btn); const act = btn.dataset.act;
+    if (!set) return;
+    if (act === 'chip') {
+      const pid = btn.dataset.p;
+      item.off = item.off.includes(pid) ? item.off.filter(x => x !== pid) : [...item.off, pid];
+      btn.classList.toggle('off'); btn.setAttribute('aria-pressed', String(!item.off.includes(pid)));
+      calc(); save(); return;
+    }
+    if (act === 'additem') {
+      const it = newItem(); set.items.push(it); renderAll(); $('in-' + it.id).focus(); return;
+    }
+    if (act === 'delitem' && set.items.length > 1) { set.items = set.items.filter(i => i !== item); renderAll(); return; }
+    if (act === 'delset' && S.sets.length > 1) { S.sets = S.sets.filter(s => s !== set); renderAll(); }
+  });
+  $('addSet').addEventListener('click', () => {
+    const s = newSet(S.people[0].id); S.sets.push(s); renderAll(); $('st-' + s.id).focus();
+  });
+
+  /* ---------- settlement ---------- */
+  let lastText = '';
+  function calc() {
+    const ppl = S.people;
+    const owe = {}, paid = {}, perSet = {};
+    ppl.forEach(p => { owe[p.id] = 0; paid[p.id] = 0; perSet[p.id] = S.sets.map(() => 0); });
+    const setTotals = [];
+
+    S.sets.forEach((s, si) => {
+      let total = 0, skipped = 0;
+      s.items.forEach(it => {
+        if (!it.amount) return;
+        const on = ppl.filter(p => !it.off.includes(p.id));
+        if (!on.length) { skipped += it.amount; return; }
+        total += it.amount;
+        const share = it.amount / on.length;
+        on.forEach(p => { owe[p.id] += share; perSet[p.id][si] += share; });
+      });
+      if (byId(s.payer)) paid[s.payer] += total;
+      setTotals.push(total);
+      const el = document.querySelector(`.set[data-sid="${s.id}"]`);
+      if (el) {
+        el.querySelector('[data-total]').textContent = won(total);
+        el.querySelector('[data-warn]').textContent = skipped ? `아무도 선택 안 된 ${won(skipped)}원은 제외됨` : '';
+      }
+    });
+
+    // transfers: greedy matching of debtors to creditors
+    const unit = Number(S.round) || 1;
+    const net = ppl.map(p => ({ p, v: paid[p.id] - owe[p.id] }));
+    const cred = net.filter(x => x.v > 0.5).map(x => ({ ...x })).sort((a, b) => b.v - a.v);
+    const debt = net.filter(x => x.v < -0.5).map(x => ({ ...x, v: -x.v })).sort((a, b) => b.v - a.v);
+    const tr = [];
+    let ci = 0, di = 0;
+    while (ci < cred.length && di < debt.length) {
+      const m = Math.min(cred[ci].v, debt[di].v);
+      const amt = Math.round(m / unit) * unit;
+      if (amt > 0) tr.push({ from: debt[di].p, to: cred[ci].p, amt });
+      cred[ci].v -= m; debt[di].v -= m;
+      if (cred[ci].v < 0.5) ci++;
+      if (debt[di].v < 0.5) di++;
+    }
+
+    $('transfers').innerHTML = tr.length
+      ? tr.map(t => `<li class="tr"><span class="who"><span class="nm">${esc(pName(t.from))}</span>${iga(pName(t.from))} <span class="nm">${esc(pName(t.to))}</span>에게</span><span class="money">${won(t.amt)}원</span></li>`).join('')
+      : `<li class="empty">${setTotals.some(Boolean) ? '주고받을 돈이 없습니다.' : '금액을 입력하면 누가 누구에게 얼마를 보낼지 여기에 표시됩니다.'}</li>`;
+
+    const grand = setTotals.reduce((a, b) => a + b, 0);
+    const head = `<thead><tr><th>이름</th>${S.sets.map((s, i) => `<th>${esc(setLabel(s, i))}</th>`).join('')}<th>실제 부담할 금액</th><th>결제한 금액</th><th>차액</th></tr></thead>`;
+    const body = ppl.map(p => {
+      const n = paid[p.id] - owe[p.id];
+      return `<tr><td data-pname="${p.id}">${esc(pName(p))}</td>${perSet[p.id].map(v => `<td>${v ? won(v) : '–'}</td>`).join('')}<td>${won(owe[p.id])}</td><td>${paid[p.id] ? won(paid[p.id]) : '–'}</td><td class="${n > 0.5 ? 'pos' : n < -0.5 ? 'neg' : ''}">${n > 0.5 ? '+' : ''}${won(n)}</td></tr>`;
+    }).join('');
+    const foot = `<tfoot><tr><td>합계</td>${setTotals.map(v => `<td>${won(v)}</td>`).join('')}<td>${won(grand)}</td><td>${won(grand)}</td><td></td></tr></tfoot>`;
+    $('breakdown').innerHTML = head + '<tbody>' + body + '</tbody>' + foot;
+
+    lastText = ['[더치페이 정산]',
+      ...S.sets.map((s, i) => setTotals[i] ? `${setLabel(s, i)} ${won(setTotals[i])}원 (결제: ${byId(s.payer) ? pName(byId(s.payer)) : '-'})` : null).filter(Boolean),
+      `총 ${won(grand)}원`, '',
+      ...ppl.map(p => `${pName(p)} 부담 ${won(owe[p.id])}원`), '',
+      ...(tr.length ? tr.map(t => `${pName(t.from)}${iga(pName(t.from))} ${pName(t.to)}에게 ${won(t.amt)}원`) : ['주고받을 돈 없음'])
+    ].join('\n');
+  }
+
+  $('round').addEventListener('change', (e) => { S.round = Number(e.target.value); calc(); save(); });
+  $('copy').addEventListener('click', () => {
+    const done = (msg) => { $('toast').textContent = msg; setTimeout(() => $('toast').textContent = '', 2500); };
+    try {
+      navigator.clipboard.writeText(lastText).then(() => done('복사했습니다. 단톡방에 붙여넣으세요.'), () => fallback());
+    } catch (e) { fallback(); }
+    function fallback() {
+      const ta = document.createElement('textarea'); ta.value = lastText; document.body.appendChild(ta); ta.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      ta.remove(); done(ok ? '복사했습니다.' : '복사가 막혀 있습니다. 표를 직접 선택해 복사하세요.');
+    }
+  });
+
+  // two-step reset (confirm() is unavailable in the viewer)
+  let armed = null;
+  $('reset').addEventListener('click', (e) => {
+    if (!armed) {
+      e.target.textContent = '한 번 더 누르면 비워집니다';
+      armed = setTimeout(() => { armed = null; e.target.textContent = '모두 비우기'; }, 3000);
+      return;
+    }
+    clearTimeout(armed); armed = null; e.target.textContent = '모두 비우기';
+    S = blank(); renderAll(); save();
+  });
+
+  function renderAll() { renderPeople(); renderSets(); $('round').value = String(S.round || 1); calc(); save(); }
+  renderAll();
+})();
+</script>
+
+</body></html>
